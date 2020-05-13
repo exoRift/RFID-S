@@ -9,7 +9,7 @@ const String months[12] = {
 };
 
 const uint8_t errPin = 3;
-const uint8_t address = 280;
+const uint8_t address = 0;
 int iterator = 0;
 
 tmElements_t tm;

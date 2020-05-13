@@ -14,7 +14,7 @@ RHReliableDatagram manager(rd, CLIENT_ADDRESS);
 
 const String tranKey("eThWmZq4t6w9z$C&F)J@NcRfUjXn2r5u"); // DEBUG
 
-uint8_t tranKeyAddress = 280;
+uint8_t tranKeyAddress = 0;
 
 const String defaultMsg('1');
 const String msg = defaultMsg;
@@ -32,11 +32,12 @@ void setup () {
 
 const uint8_t writeMem (const uint8_t startAddr, const String value) {
   const uint8_t valueLen = value.length();
+  const uint8_t endAddr = startAddr + valueLen;
 
   for (uint8_t i = 0; i < valueLen; i++) EEPROM.update(startAddr + i, value[i]);
-  EEPROM.update(startAddr + valueLen, 0);
+  EEPROM.update(endAddr, 0);
 
-  return valueLen;
+  return endAddr;
 }
 
 const String readMem (const uint8_t startAddr) {
@@ -54,15 +55,18 @@ const String readMem (const uint8_t startAddr) {
 }
 
 const String hash (const String msg, const String key) {
-  uint8_t *hash;
+  uint8_t *hashed;
+  String res;
 
   Sha256.initHmac(key.c_str(), key.length());
 
-  Sha256.print(msg);
+  Sha256.print(msg.c_str());
 
-  hash = Sha256.resultHmac();
+  hashed = Sha256.resultHmac();
 
-  return hash;
+  for (uint8_t i = 0; i < key.length(); i++) res.concat(String(hashed[i], HEX));
+
+  return res;
 }
 
 void loop () {
@@ -71,6 +75,7 @@ void loop () {
     uint8_t from;
 
     if (manager.recvfromAckTimeout(buf, &buflen, 2000, &from)) {
+      Serial.println("RECEIVED");
       if (from == SERVER_ADDRESS) {
         String bufString((char *)buf);
         bufString = bufString.substring(0, buflen);
@@ -78,7 +83,7 @@ void loop () {
         const char status = bufString[0];
         const String param(bufString.substring(bufString.indexOf(':') + 1, bufString.length()));
   
-//        Serial.print(status); // DEBUG
+        Serial.print(status); // DEBUG
 //        Serial.print(' '); // DEBUG
         Serial.print("P: ");
         Serial.println(param); // DEBUG
@@ -86,6 +91,7 @@ void loop () {
         switch (status) {
           case '2': { // received hashed unix
             const String dHashed("3:" + hash(param, readMem(tranKeyAddress)));
+            Serial.println(readMem(tranKeyAddress));
             Serial.print("H: ");
             Serial.println(dHashed);
   

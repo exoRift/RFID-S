@@ -17,7 +17,7 @@ RHReliableDatagram manager(rd, SERVER_ADDRESS);
 const String recKey("mZq4t7w!z%C*F)J@NcRfUjXn2r5u8x/A"); // DEBUG
 const String tranKey("eThWmZq4t6w9z$C&F)J@NcRfUjXn2r5u"); // DEBUG
 
-const uint8_t recKeyAddress = 380;
+const uint8_t recKeyAddress = 0;
 uint8_t tranKeyAddress;
 uint8_t dumpAddress;
 
@@ -39,18 +39,16 @@ void setup () {
   tranKeyAddress = writeMem(recKeyAddress, recKey) + 1; // DEBUG
 
   dumpAddress = writeMem(tranKeyAddress, tranKey) + 1; // DEBUG
-
-  Serial.println(readMem(recKeyAddress));
-  Serial.println(readMem(tranKeyAddress));
 }
 
 const uint8_t writeMem (const uint8_t startAddr, const String value) {
   const uint8_t valueLen = value.length();
+  const uint8_t endAddr = startAddr + valueLen;
 
   for (uint8_t i = 0; i < valueLen; i++) EEPROM.update(startAddr + i, value[i]);
-  EEPROM.update(startAddr + valueLen, 0);
+  EEPROM.update(endAddr, 0);
 
-  return valueLen;
+  return endAddr;
 }
 
 const String readMem (const uint8_t startAddr) {
@@ -68,15 +66,18 @@ const String readMem (const uint8_t startAddr) {
 }
 
 const String hash (const String msg, const String key) {
-  uint8_t *hash;
+  uint8_t *hashed;
+  String res;
 
   Sha256.initHmac(key.c_str(), key.length());
 
-  Sha256.print(msg);
+  Sha256.print(msg.c_str());
 
-  hash = Sha256.resultHmac();
+  hashed = Sha256.resultHmac();
 
-  return hash;
+  for (uint8_t i = 0; i < key.length(); i++) res.concat(String(hashed[i], HEX));
+
+  return res;
 }
 
 const uint32_t getUnix () {
@@ -105,47 +106,46 @@ void loop () {
       if (from == CLIENT_ADDRESS) {
         String bufString((char *)buf);
         bufString = bufString.substring(0, buflen);
-  
+
         const char status = bufString[0];
         const String param(bufString.substring(bufString.indexOf(':') + 1, bufString.length()));
-  
+
         Serial.print(status); // DEBUG
 //        Serial.print(' '); // DEBUG
 //        Serial.println(param); // DEBUG
-  
+
         switch (status) {
           case '1': { // ready
             const uint32_t unix = getUnix();
-  
+
             if (unix) {
-              Serial.println("sending"); // DEBUG
-              const String hashed("2:" + hash(String(unix), readMem(recKeyAddress)));
-  
+              String hashed("2:" + hash(String(unix), readMem(recKeyAddress)));
+              Serial.println(hashed);
+
               writeMem(dumpAddress, hashed);
-  
+
               manager.sendtoWait(hashed.c_str(), hashed.length(), from);
             }
 
             break;
           }
           case '3': { // recieved double-hashed unix
-            Serial.println(readMem(tranKeyAddress));
             const String compare(hash(readMem(dumpAddress), readMem(tranKeyAddress)));
             Serial.print("C: ");
             Serial.println(compare);
 
-            Serial.print("COMPARE ");
-            Serial.println(param == compare);
-  
+            Serial.print("I: ");
+            Serial.println(param);
+
             setStatus(param == compare);
-  
+
             statusDelay = millis();
 
             break;
           }
           default: {
             const char msg = '9';
-  
+
             manager.sendtoWait(msg, sizeof(msg), from);
 
             break;
