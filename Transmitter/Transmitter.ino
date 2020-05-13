@@ -1,33 +1,40 @@
 #include <EEPROM.h>
 
+#include <RHReliableDatagram.h>
 #include <RH_ASK.h>
 #include <SPI.h>
 
 #include <sha256.h>
 
-const RH_ASK rd;
+#define CLIENT_ADDRESS 1
+#define SERVER_ADDRESS 2
+
+RH_ASK rd;
+RHReliableDatagram manager(rd, CLIENT_ADDRESS);
 
 const String tranKey("eThWmZq4t6w9z$C&F)J@NcRfUjXn2r5u"); // DEBUG
 
-uint8_t tranKeyAddress = 0;
+uint8_t tranKeyAddress = 280;
 
-bool state = true;
-String msg('1');
-long tm;
+const String defaultMsg('1');
+const String msg = defaultMsg;
+uint8_t buf[RH_ASK_MAX_MESSAGE_LEN];
 
 void setup () {
   Serial.begin(9600); // DEBUG
 
-  const bool driverStatus = rd.init();
+  const bool managerStatus = manager.init();
 
-  if (!driverStatus) Serial.println("Driver init failed"); // DEBUG
+  if (!managerStatus) Serial.println("Manager init failed"); // DEBUG
+
+  writeMem(tranKeyAddress, tranKey); // DEBUG
 }
 
 const uint8_t writeMem (const uint8_t startAddr, const String value) {
   const uint8_t valueLen = value.length();
 
   for (uint8_t i = 0; i < valueLen; i++) EEPROM.update(startAddr + i, value[i]);
-  EEPROM.update(valueLen, 0);
+  EEPROM.update(startAddr + valueLen, 0);
 
   return valueLen;
 }
@@ -58,43 +65,35 @@ const String hash (const String msg, const String key) {
   return hash;
 }
 
-const void setState (const bool newState, String newMsg = String('1')) {
-  state = newState;
-  msg = newMsg;
-
-  if (newState) tm = millis();
-}
-
 void loop () {
-  uint8_t buf[256];
-  uint8_t buflen;
+  if (manager.sendtoWait(msg.c_str(), msg.length(), SERVER_ADDRESS)) {
+    uint8_t buflen = sizeof(buf);
+    uint8_t from;
 
-  if (!state && millis() - tm >= 50) setState(true);
-
-  if (state) {
-    rd.send(msg.c_str(), msg.length());
-    rd.waitPacketSent();
-
-    setState(true);
-  } else {
-    if (rd.recv(buf, &buflen)) {
-      String bufString((char *)buf);
-      bufString = bufString.substring(0, buflen);
-
-      const String status(bufString.substring(0, bufString.indexOf(':')));
-      const String param(bufString.substring(bufString.indexOf(':') + 1, bufString.length()));
-
-      Serial.print(status); // DEBUG
-      Serial.print(' '); // DEBUG
-      Serial.println(param); // DEBUG
-
-      switch (status.toInt()) {
-        case 2: // received hashed unix
-          const String dHashed("3:" + hash(String(param), readMem(tranKeyAddress)));
-
-          setState(true, dHashed);
-          break;
+    if (manager.recvfromAckTimeout(buf, &buflen, 2000, &from)) {
+      if (from == SERVER_ADDRESS) {
+        String bufString((char *)buf);
+        bufString = bufString.substring(0, buflen);
+  
+        const char status = bufString[0];
+        const String param(bufString.substring(bufString.indexOf(':') + 1, bufString.length()));
+  
+//        Serial.print(status); // DEBUG
+//        Serial.print(' '); // DEBUG
+        Serial.print("P: ");
+        Serial.println(param); // DEBUG
+  
+        switch (status) {
+          case '2': { // received hashed unix
+            const String dHashed("3:" + hash(param, readMem(tranKeyAddress)));
+            Serial.print("H: ");
+            Serial.println(dHashed);
+  
+            msg = dHashed;
+            break;
+          }
+        }          
       }
-    }
+    } else msg = defaultMsg;
   }
 }

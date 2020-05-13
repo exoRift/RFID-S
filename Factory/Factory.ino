@@ -1,74 +1,63 @@
 #include <Wire.h>
 #include <TimeLib.h>
 #include <DS1307RTC.h>
+#include <EEPROM.h>
 
-const char *monthName[12] = {
+const String months[12] = {
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 };
 
+const uint8_t errPin = 3;
+const uint8_t address = 280;
+int iterator = 0;
+
 tmElements_t tm;
 
-void setup() {
-  bool parse=false;
-  bool config=false;
+void setup () {
+  pinMode(errPin, OUTPUT);
 
-  // get the date and time the compiler was run
-  if (getDate(__DATE__) && getTime(__TIME__)) {
-    parse = true;
-    // and configure the RTC with this info
-    if (RTC.write(tm)) {
-      config = true;
-    }
-  }
+  if (getDate() && getTime()) {
+    RTC.write(tm);
+  } else digitalWrite(errPin, HIGH);
+}
 
-  Serial.begin(9600);
-  while (!Serial) ; // wait for Arduino Serial Monitor
-  delay(200);
-  if (parse && config) {
-    Serial.print("DS1307 configured Time=");
-    Serial.print(__TIME__);
-    Serial.print(", Date=");
-    Serial.println(__DATE__);
-  } else if (parse) {
-    Serial.println("DS1307 Communication Error :-{");
-    Serial.println("Please check your circuitry");
-  } else {
-    Serial.print("Could not parse info from the compiler, Time=\"");
-    Serial.print(__TIME__);
-    Serial.print("\", Date=\"");
-    Serial.print(__DATE__);
-    Serial.println("\"");
+void loop () {
+  if (Serial.available()) {
+    const uint8_t tokenChar = Serial.read();
+
+    EEPROM.write(iterator, tokenChar);
+    iterator++;
   }
 }
 
-void loop() {
-}
+const bool getDate () {
+  String mthStr;
+  uint8_t mth, dy, yr;
+  
+  if (sscanf(__DATE__, "%s %d %d", mthStr, &dy, &yr) != 3) return false;
 
-bool getTime(const char *str)
-{
-  int Hour, Min, Sec;
+  for (uint8_t i = 0; i < 12; i ++) {
+    if (months[i] == mthStr) mth = i + 1;
+  }
 
-  if (sscanf(str, "%d:%d:%d", &Hour, &Min, &Sec) != 3) return false;
-  tm.Hour = Hour;
-  tm.Minute = Min;
-  tm.Second = Sec;
+  if (!mth) return false;
+
+  tm.Month = mth;
+  tm.Day = dy;
+  tm.Year = CalendarYrToTm(yr);
+
   return true;
 }
 
-bool getDate(const char *str)
-{
-  char Month[12];
-  int Day, Year;
-  uint8_t monthIndex;
+const bool getTime () {
+  uint8_t hr, mn, sc;
+  
+  if (sscanf(__TIME__, "%d:%d:%d", &hr, &mn, &sc) != 3) return false;
 
-  if (sscanf(str, "%s %d %d", Month, &Day, &Year) != 3) return false;
-  for (monthIndex = 0; monthIndex < 12; monthIndex++) {
-    if (strcmp(Month, monthName[monthIndex]) == 0) break;
-  }
-  if (monthIndex >= 12) return false;
-  tm.Day = Day;
-  tm.Month = monthIndex + 1;
-  tm.Year = CalendarYrToTm(Year);
+  tm.Hour = hr;
+  tm.Minute = mn;
+  tm.Second = sc;
+
   return true;
 }
