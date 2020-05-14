@@ -12,12 +12,13 @@
 RH_ASK rd;
 RHReliableDatagram manager(rd, CLIENT_ADDRESS);
 
-const char *cardKey = "eThWmZq4t6w9z$C&F)J@NcRfUjXn2r5u"; // DEBUG
+const char *cardKey = "eThWmZq4t6w9z$C&"; // DEBUG
 
 uint8_t cardKeyAddress = 0;
 
 char *msg = "1";
 uint8_t buf[RH_ASK_MAX_MESSAGE_LEN];
+long messageDelay;
 
 void setup () {
   Serial.begin(9600); // DEBUG
@@ -69,14 +70,11 @@ const String hash (const String msg, const String key) {
 }
 
 void loop () {
-  Serial.println(msg);
   if (manager.sendtoWait(msg, strlen(msg), SERVER_ADDRESS)) {
-    Serial.println("sent");
     uint8_t buflen = sizeof(buf);
     uint8_t from;
 
     if (manager.recvfromAckTimeout(buf, &buflen, 2000, &from)) {
-      Serial.println("rec");
       if (from == SERVER_ADDRESS) {
         String bufString((char *)buf);
   
@@ -85,23 +83,23 @@ void loop () {
   
         Serial.print(status); // DEBUG
         Serial.print(' '); // DEBUG
-        Serial.print("P: ");
         Serial.println(param); // DEBUG
   
         switch (status) {
           case '2': { // received hashed unix
-            char dHashed[66] = "3:";
+            char dHashed[36] = "3:";
             strcat(dHashed, hash(param, readMem(cardKeyAddress)).c_str());
 
-            Serial.println(readMem(cardKeyAddress));
             Serial.print("H: ");
             Serial.println(dHashed);
   
             msg = dHashed;
+            messageDelay = millis();
+
             break;
           }
         }          
       }
     } else msg = "1";
-  }
+  } else if (millis() - messageDelay > 2000) msg = "1";
 }

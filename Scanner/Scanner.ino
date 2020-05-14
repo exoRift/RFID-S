@@ -14,8 +14,8 @@
 RH_ASK rd;
 RHReliableDatagram manager(rd, SERVER_ADDRESS);
 
-const char *scannerKey = "mZq4t7w!z%C*F)J@NcRfUjXn2r5u8x/A"; // DEBUG
-const char *cardKey = "eThWmZq4t6w9z$C&F)J@NcRfUjXn2r5u"; // DEBUG
+const char *scannerKey = "mZq4t7w!z%C*F)J@"; // DEBUG
+const char *cardKey = "eThWmZq4t6w9z$C&"; // DEBUG
 
 const uint8_t scannerKeyAddress = 0;
 uint8_t cardKeyAddress;
@@ -64,7 +64,7 @@ const String readMem (const uint8_t startAddr) {
 }
 
 const String hash (const String msg, const String key) {
-  uint8_t *hashed;
+  uint8_t *hashed = "";
   String res;
   res.reserve(64);
 
@@ -118,19 +118,20 @@ void loop () {
             const String unix(getUnix());
 
             if (unix) {
-              char hashed[66] = "2:";
-              strcat(hashed, hash(unix, readMem(scannerKeyAddress)).c_str());
+              const String hashed = hash(unix, readMem(scannerKeyAddress));
+              char msg[36] = "2:";
+              strcat(msg, hashed.c_str());
 
-              Serial.println(hashed);
+              writeMem(dumpAddress, hashed.c_str());
 
-              writeMem(dumpAddress, hashed);
-
-              manager.sendtoWait(hashed, strlen(hashed), from);
+              manager.sendtoWait(msg, strlen(msg), from);
             }
 
             break;
           }
           case '3': { // recieved double-hashed unix
+            Serial.print("D: ");
+            Serial.println(readMem(dumpAddress));
             const String compare = hash(readMem(dumpAddress), readMem(cardKeyAddress));
             Serial.print("C: ");
             Serial.println(compare);
@@ -141,6 +142,7 @@ void loop () {
             setStatus(param == compare);
 
             statusDelay = millis();
+            delay(5000);
 
             break;
           }
