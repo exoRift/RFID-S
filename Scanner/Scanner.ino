@@ -14,9 +14,6 @@
 RH_ASK rd;
 RHReliableDatagram manager(rd, SERVER_ADDRESS);
 
-const char *scannerKey = "mZq4t7w!z%C*F)J@"; // DEBUG
-const char *cardKey = "eThWmZq4t6w9z$C&"; // DEBUG
-
 const uint8_t scannerKeyAddress = 0;
 uint8_t cardKeyAddress;
 uint8_t dumpAddress;
@@ -29,15 +26,7 @@ const uint8_t statusPin = 8;
 void setup () {
   pinMode(statusPin, OUTPUT);
 
-  Serial.begin(9600); // DEBUG
-
-  const bool managerStatus = manager.init();
-
-  if (!managerStatus) Serial.println("Manager init failed"); // DEBUG
-
-  cardKeyAddress = writeMem(scannerKeyAddress, scannerKey) + 1; // DEBUG
-
-  dumpAddress = writeMem(cardKeyAddress, cardKey) + 1; // DEBUG
+  manager.init();
 }
 
 const uint8_t writeMem (const uint8_t startAddr, const char *value) {
@@ -82,8 +71,6 @@ const String hash (const String msg, const String key) {
 const uint32_t getUnix () {
   const uint32_t unix = RTC.get();
 
-  if (!unix) Serial.println(strcat("Unable to fetch time: ", RTC.chipPresent() ? "chip present" : "chip not present")); // DEBUG
-
   return unix;
 }
 
@@ -104,14 +91,9 @@ void loop () {
     if (manager.recvfromAck(buf, &buflen, &from)) {
       if (from == CLIENT_ADDRESS) {
         String bufString((char *)buf);
-        Serial.println(bufString);
 
         const char status = bufString[0];
         const String param = bufString.substring(bufString.indexOf(':') + 1, bufString.length());
-
-        Serial.print(status); // DEBUG
-        Serial.print(' '); // DEBUG
-        Serial.println(param); // DEBUG
 
         switch (status) {
           case '1': { // ready
@@ -130,19 +112,11 @@ void loop () {
             break;
           }
           case '3': { // recieved double-hashed unix
-            Serial.print("D: ");
-            Serial.println(readMem(dumpAddress));
             const String compare = hash(readMem(dumpAddress), readMem(cardKeyAddress));
-            Serial.print("C: ");
-            Serial.println(compare);
-
-            Serial.print("I: ");
-            Serial.println(param);
 
             setStatus(param == compare);
 
             statusDelay = millis();
-            delay(5000);
 
             break;
           }
