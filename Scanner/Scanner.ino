@@ -14,11 +14,11 @@
 RH_ASK rd;
 RHReliableDatagram manager(rd, SERVER_ADDRESS);
 
-const String recKey("mZq4t7w!z%C*F)J@NcRfUjXn2r5u8x/A"); // DEBUG
-const String tranKey("eThWmZq4t6w9z$C&F)J@NcRfUjXn2r5u"); // DEBUG
+const String scannerKey("mZq4t7w!z%C*F)J@NcRfUjXn2r5u8x/A"); // DEBUG
+const String cardKey("eThWmZq4t6w9z$C&F)J@NcRfUjXn2r5u"); // DEBUG
 
-const uint8_t recKeyAddress = 0;
-uint8_t tranKeyAddress;
+const uint8_t scannerKeyAddress = 0;
+uint8_t cardKeyAddress;
 uint8_t dumpAddress;
 
 String msg;
@@ -36,9 +36,9 @@ void setup () {
 
   if (!managerStatus) Serial.println("Manager init failed"); // DEBUG
 
-  tranKeyAddress = writeMem(recKeyAddress, recKey) + 1; // DEBUG
+  cardKeyAddress = writeMem(scannerKeyAddress, scannerKey) + 1; // DEBUG
 
-  dumpAddress = writeMem(tranKeyAddress, tranKey) + 1; // DEBUG
+  dumpAddress = writeMem(cardKeyAddress, cardKey) + 1; // DEBUG
 }
 
 const uint8_t writeMem (const uint8_t startAddr, const String value) {
@@ -119,7 +119,7 @@ void loop () {
             const uint32_t unix = getUnix();
 
             if (unix) {
-              String hashed("2:" + hash(String(unix), readMem(recKeyAddress)));
+              String hashed("2:" + hash(String(unix), readMem(scannerKeyAddress)));
               Serial.println(hashed);
 
               writeMem(dumpAddress, hashed);
@@ -130,7 +130,7 @@ void loop () {
             break;
           }
           case '3': { // recieved double-hashed unix
-            const String compare(hash(readMem(dumpAddress), readMem(tranKeyAddress)));
+            const String compare(hash(readMem(dumpAddress), readMem(cardKeyAddress)));
             Serial.print("C: ");
             Serial.println(compare);
 

@@ -12,9 +12,9 @@
 RH_ASK rd;
 RHReliableDatagram manager(rd, CLIENT_ADDRESS);
 
-const String tranKey("eThWmZq4t6w9z$C&F)J@NcRfUjXn2r5u"); // DEBUG
+const String cardKey("eThWmZq4t6w9z$C&F)J@NcRfUjXn2r5u"); // DEBUG
 
-uint8_t tranKeyAddress = 0;
+uint8_t cardKeyAddress = 0;
 
 const String defaultMsg('1');
 const String msg = defaultMsg;
@@ -27,7 +27,7 @@ void setup () {
 
   if (!managerStatus) Serial.println("Manager init failed"); // DEBUG
 
-  writeMem(tranKeyAddress, tranKey); // DEBUG
+  writeMem(cardKeyAddress, cardKey); // DEBUG
 }
 
 const uint8_t writeMem (const uint8_t startAddr, const String value) {
@@ -90,8 +90,8 @@ void loop () {
   
         switch (status) {
           case '2': { // received hashed unix
-            const String dHashed("3:" + hash(param, readMem(tranKeyAddress)));
-            Serial.println(readMem(tranKeyAddress));
+            const String dHashed("3:" + hash(param, readMem(cardKeyAddress)));
+            Serial.println(readMem(cardKeyAddress));
             Serial.print("H: ");
             Serial.println(dHashed);
   
