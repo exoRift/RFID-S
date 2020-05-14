@@ -14,14 +14,13 @@
 RH_ASK rd;
 RHReliableDatagram manager(rd, SERVER_ADDRESS);
 
-const String scannerKey("mZq4t7w!z%C*F)J@NcRfUjXn2r5u8x/A"); // DEBUG
-const String cardKey("eThWmZq4t6w9z$C&F)J@NcRfUjXn2r5u"); // DEBUG
+const char *scannerKey = "mZq4t7w!z%C*F)J@NcRfUjXn2r5u8x/A"; // DEBUG
+const char *cardKey = "eThWmZq4t6w9z$C&F)J@NcRfUjXn2r5u"; // DEBUG
 
 const uint8_t scannerKeyAddress = 0;
 uint8_t cardKeyAddress;
 uint8_t dumpAddress;
 
-String msg;
 uint8_t buf[RH_ASK_MAX_MESSAGE_LEN];
 long statusDelay;
 
@@ -41,20 +40,19 @@ void setup () {
   dumpAddress = writeMem(cardKeyAddress, cardKey) + 1; // DEBUG
 }
 
-const uint8_t writeMem (const uint8_t startAddr, const String value) {
-  const uint8_t valueLen = value.length();
-  const uint8_t endAddr = startAddr + valueLen;
+const uint8_t writeMem (const uint8_t startAddr, const char *value) {
+  const uint8_t valueLen = strlen(value);
 
-  for (uint8_t i = 0; i < valueLen; i++) EEPROM.update(startAddr + i, value[i]);
-  EEPROM.update(endAddr, 0);
+  for (uint8_t i = 0; i <= valueLen; i++) EEPROM.update(startAddr + i, value[i]);
 
-  return endAddr;
+  return startAddr + valueLen;
 }
 
 const String readMem (const uint8_t startAddr) {
   String res;
+  res.reserve(32);
 
-  for (uint8_t i = 0; i < 64; i++) {
+  for (uint8_t i = 0; i < 32; i++) {
     const uint8_t index = EEPROM.read(startAddr + i);
 
     if (!index) break;
@@ -68,6 +66,7 @@ const String readMem (const uint8_t startAddr) {
 const String hash (const String msg, const String key) {
   uint8_t *hashed;
   String res;
+  res.reserve(64);
 
   Sha256.initHmac(key.c_str(), key.length());
 
@@ -83,7 +82,7 @@ const String hash (const String msg, const String key) {
 const uint32_t getUnix () {
   const uint32_t unix = RTC.get();
 
-  if (!unix) Serial.println(String("Unable to fetch time: ") + String((RTC.chipPresent() ? "chip present" : "chip not present"))); // DEBUG
+  if (!unix) Serial.println(strcat("Unable to fetch time: ", RTC.chipPresent() ? "chip present" : "chip not present")); // DEBUG
 
   return unix;
 }
@@ -105,32 +104,34 @@ void loop () {
     if (manager.recvfromAck(buf, &buflen, &from)) {
       if (from == CLIENT_ADDRESS) {
         String bufString((char *)buf);
-        bufString = bufString.substring(0, buflen);
+        Serial.println(bufString);
 
         const char status = bufString[0];
-        const String param(bufString.substring(bufString.indexOf(':') + 1, bufString.length()));
+        const String param = bufString.substring(bufString.indexOf(':') + 1, bufString.length());
 
         Serial.print(status); // DEBUG
-//        Serial.print(' '); // DEBUG
-//        Serial.println(param); // DEBUG
+        Serial.print(' '); // DEBUG
+        Serial.println(param); // DEBUG
 
         switch (status) {
           case '1': { // ready
-            const uint32_t unix = getUnix();
+            const String unix(getUnix());
 
             if (unix) {
-              String hashed("2:" + hash(String(unix), readMem(scannerKeyAddress)));
+              char hashed[66] = "2:";
+              strcat(hashed, hash(unix, readMem(scannerKeyAddress)).c_str());
+
               Serial.println(hashed);
 
               writeMem(dumpAddress, hashed);
 
-              manager.sendtoWait(hashed.c_str(), hashed.length(), from);
+              manager.sendtoWait(hashed, strlen(hashed), from);
             }
 
             break;
           }
           case '3': { // recieved double-hashed unix
-            const String compare(hash(readMem(dumpAddress), readMem(cardKeyAddress)));
+            const String compare = hash(readMem(dumpAddress), readMem(cardKeyAddress));
             Serial.print("C: ");
             Serial.println(compare);
 
@@ -146,7 +147,7 @@ void loop () {
           default: {
             const char msg = '9';
 
-            manager.sendtoWait(msg, sizeof(msg), from);
+            manager.sendtoWait(msg, strlen(msg), from);
 
             break;
           }
