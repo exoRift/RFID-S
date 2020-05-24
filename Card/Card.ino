@@ -12,22 +12,15 @@
 RH_ASK rd;
 RHReliableDatagram manager(rd, CLIENT_ADDRESS);
 
-const char *cardKey = "eThWmZq4t6w9z$C&"; // DEBUG
-
-uint8_t cardKeyAddress = 0;
+const uint8_t cardKeyAddress = 0;
+const uint8_t idAddress = cardKeyAddress + readMem(cardKeyAddress).length();
 
 char *msg = "1";
 uint8_t buf[RH_ASK_MAX_MESSAGE_LEN];
 long messageDelay;
 
 void setup () {
-  Serial.begin(9600); // DEBUG
-
-  const bool managerStatus = manager.init();
-
-  if (!managerStatus) Serial.println("Manager init failed"); // DEBUG
-
-  writeMem(cardKeyAddress, cardKey); // DEBUG
+  manager.init();
 }
 
 const uint8_t writeMem (const uint8_t startAddr, const char *value) {
@@ -77,22 +70,17 @@ void loop () {
     if (manager.recvfromAckTimeout(buf, &buflen, 2000, &from)) {
       if (from == SERVER_ADDRESS) {
         String bufString((char *)buf);
-  
+
         const char status = bufString[0];
         const String param = bufString.substring(bufString.indexOf(':') + 1, bufString.length());
-  
-        Serial.print(status); // DEBUG
-        Serial.print(' '); // DEBUG
-        Serial.println(param); // DEBUG
-  
+
         switch (status) {
           case '2': { // received hashed unix
-            char dHashed[36] = "3:";
+            char dHashed[45] = "3:";
             strcat(dHashed, hash(param, readMem(cardKeyAddress)).c_str());
+            strcat(dHashed, "|");
+            strcat(dHashed, readMem(idAddress).c_str());
 
-            Serial.print("H: ");
-            Serial.println(dHashed);
-  
             msg = dHashed;
             messageDelay = millis();
 
