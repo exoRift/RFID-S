@@ -15,8 +15,8 @@ RH_ASK rd;
 RHReliableDatagram manager(rd, SERVER_ADDRESS);
 
 const uint8_t scannerKeyAddress = 0;
-uint8_t cardKeyAddress;
-uint8_t dumpAddress;
+const uint8_t cardKeyAddress = scannerKeyAddress + readMem(scannerKeyAddress).length();
+const uint8_t dumpAddress = cardKeyAddress + readMem(cardKeyAddress).length();
 
 uint8_t buf[RH_ASK_MAX_MESSAGE_LEN];
 long statusDelay;
@@ -93,7 +93,8 @@ void loop () {
         String bufString((char *)buf);
 
         const char status = bufString[0];
-        const String param = bufString.substring(bufString.indexOf(':') + 1, bufString.length());
+        const String param = bufString.substring(bufString.indexOf(':') + 1, bufString.indexOf('|'));
+//        const String id = bufString.substring(bufString.indexOf('|') + 1, bufString.length());
 
         switch (status) {
           case '1': { // ready

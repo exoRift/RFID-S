@@ -12,7 +12,8 @@
 RH_ASK rd;
 RHReliableDatagram manager(rd, CLIENT_ADDRESS);
 
-uint8_t cardKeyAddress = 0;
+const uint8_t cardKeyAddress = 0;
+const uint8_t idAddress = cardKeyAddress + readMem(cardKeyAddress).length();
 
 char *msg = "1";
 uint8_t buf[RH_ASK_MAX_MESSAGE_LEN];
@@ -75,8 +76,10 @@ void loop () {
 
         switch (status) {
           case '2': { // received hashed unix
-            char dHashed[36] = "3:";
+            char dHashed[45] = "3:";
             strcat(dHashed, hash(param, readMem(cardKeyAddress)).c_str());
+            strcat(dHashed, "|");
+            strcat(dHashed, readMem(idAddress).c_str());
 
             msg = dHashed;
             messageDelay = millis();
