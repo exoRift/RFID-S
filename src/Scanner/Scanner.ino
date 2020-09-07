@@ -6,8 +6,6 @@
 
 #include <sha256.h>
 
-#include <DS1307RTC.h>
-
 #define CLIENT_ADDRESS 1
 #define SERVER_ADDRESS 2
 
@@ -68,12 +66,6 @@ const String hash (const String msg, const String key) {
   return res;
 }
 
-const uint32_t getUnix () {
-  const uint32_t unix = RTC.get();
-
-  return unix;
-}
-
 const void setStatus (const bool state) {
    digitalWrite(statusPin, state);
 }
@@ -94,11 +86,10 @@ void loop () {
 
         const char status = bufString[0];
         const String param = bufString.substring(bufString.indexOf(':') + 1, bufString.indexOf('|'));
-//        const String id = bufString.substring(bufString.indexOf('|') + 1, bufString.length());
 
         switch (status) {
           case '1': { // ready
-            const String unix(getUnix());
+            const String unix(millis());
 
             if (unix) {
               const String hashed = hash(unix, readMem(scannerKeyAddress));
