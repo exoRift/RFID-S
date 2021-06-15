@@ -67,7 +67,7 @@ const String hash (const String msg, const String key) {
 }
 
 const void setStatus (const bool state) {
-   digitalWrite(statusPin, state);
+  digitalWrite(statusPin, state);
 }
 
 void loop () {
